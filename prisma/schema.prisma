@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Vendor {
+  id                 String             @id @default(uuid())
+  companyName        String
+  licenseUrl       String?            // Uploaded license file path or cloud URL
+  registrationStatus RegistrationStatus @default(PENDING) // PENDING, APPROVED, REJECTED
+  companyDetails     String?
+  contactPersonName  String
+  contactEmail       String             @unique
+  contactPhone       String?
+  contractStartDate  DateTime
+  contractEndDate    DateTime
+  reportingFrequency String
+  complianceStatus   String             @default("OK") // OK, WARNING, COMPLIANCE_ISSUE, PENALTY_ESCALATED
+  lateCount          Int                @default(0)    // <--- ADD THIS FIELD FOR PENALTIES
+  user               User?
+  submissions        ReportSubmission[]
+  deadlines          Deadline[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+model Deadline {
+  id          String             @id @default(uuid())
+  title       String?
+  reportType  String?
+  period      String?
+  dueDate     DateTime
+  status      String             @default("NOT_SUBMITTED") // <--- ADD THIS FIELD (ON_TIME, LATE, NOT_SUBMITTED)
+  vendorId    String
+  vendor      Vendor             @relation(fields: [vendorId], references: [id])
+  submissions ReportSubmission[]
+  createdAt   DateTime           @default(now())
+}
+model ReportSubmission {
+  id                  String             @id @default(uuid())
+  deadlineId          String?
+  vendorId            String
+  reportType          String
+  submissionStatus    String             // ON_TIME, LATE
+  approvalStatus      String             @default("PENDING_REVIEW")
+  notes               String?
+  submittedAt         DateTime           @default(now())
+
+  // Relations
+  vendor              Vendor             @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  deadline            Deadline?          @relation(fields: [deadlineId], references: [id], onDelete: SetNull)
+  attachments         Attachment[]
+  approvalLogs        ApprovalLog[]
+}
+
+model Attachment {
+  id                  String             @id @default(uuid())
+  submissionId        String
+  fileName            String
+  filePath            String
+  fileType            String
+  uploadedAt          DateTime           @default(now())
+
+  // Relations
+  submission          ReportSubmission   @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+model ApprovalLog {
+  id                  String             @id @default(uuid())
+  submissionId        String
+  reviewedByDept      String             // Finance, Operations, etc.
+  reviewerUserId      String
+  action              String             // APPROVED, RETURNED, REJECTED
+  comments            String?
+  reviewedAt          DateTime           @default(now())
+
+  // Relations
+  submission          ReportSubmission   @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  ADMIN
+  VENDOR
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(VENDOR)
+  vendorId  String?  @unique
+  vendor    Vendor?  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model NotificationLog {
+  id           String   @id @default(uuid())
+  recipient    String
+  subject      String
+  type         String   // 'REMINDER', 'DUE_TODAY', 'OVERDUE_ALERT', 'REVIEW_STATUS'
+  status       String   @default("SENT") // 'SENT' or 'FAILED'
+  errorMessage String?
+  sentAt       DateTime @default(now())
+}
