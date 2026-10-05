@@ -3,3 +3,21 @@ node_modules
 .env
 
 /generated/prisma
+# Dependencies
+node_modules/
+
+# Environment variables / secrets
+.env
+.env.*
+
+# Uploaded/generated files
+uploads/
+
+# IDE / AI tool folders (if you don't want them on GitHub)
+.agents/
+.claude/
+.windsurf/
+
+# Logs
+*.log
+npm-debug.log*
